@@ -47,6 +47,9 @@ namespace hoverboard_driver
     connected_pub = this->create_publisher<std_msgs::msg::Bool>("hoverboard/connected", 3);
     imu_pub[0] = this->create_publisher<sensor_msgs::msg::Imu>("hoverboard/imu0/data", 3);
     imu_pub[1] = this->create_publisher<sensor_msgs::msg::Imu>("hoverboard/imu1/data", 3);
+    cmd1_pub = this->create_publisher<std_msgs::msg::Int16>("hoverboard/cmd1", 3);
+    cmd2_pub = this->create_publisher<std_msgs::msg::Int16>("hoverboard/cmd2", 3);
+    cmdLed_pub = this->create_publisher<std_msgs::msg::UInt16>("hoverboard/cmd_led", 3);
 
     declare_parameter("f", 10.2);
     declare_parameter("p", 1.0);
@@ -117,6 +120,27 @@ namespace hoverboard_driver
     connected_pub->publish(f);
   }
 
+  void hoverboard_driver_node::publish_cmd1(int16_t message)
+  {
+    std_msgs::msg::Int16 i;
+    i.data = message;
+    cmd1_pub->publish(i);
+  }
+
+  void hoverboard_driver_node::publish_cmd2(int16_t message)
+  {
+    std_msgs::msg::Int16 i;
+    i.data = message;
+    cmd2_pub->publish(i);
+  }
+
+  void hoverboard_driver_node::publish_cmdLed(uint16_t message)
+  {
+    std_msgs::msg::UInt16 u;
+    u.data = message;
+    cmdLed_pub->publish(u);
+  }
+
   void hoverboard_driver_node::publish_imu(const SerialImu& message, const rclcpp::Time &time)
   {
     if (!imu_enabled_) {
@@ -129,7 +153,22 @@ namespace hoverboard_driver
     } else if (message.imuId == 1) {
       imu_msg.header.frame_id = imu1_frame_id_;
     } else {
-      RCLCPP_WARN(get_logger(), "Received IMU message with invalid imuId: %d", message.imuId);
+      // For debugging, parameters accelX, accelY, accelZ are used to report debug counters from hoverboard firmware.
+      RCLCPP_WARN(get_logger(), "IMU read error imuId: %d, error %d, addrError %d, timeout %d", message.imuId, message.accelX, message.accelY, message.accelZ);
+
+      imu_msg.header.frame_id = "hoverboard_imu_unknown";
+
+      imu_msg.linear_acceleration.x = (double)message.accelX;
+      imu_msg.linear_acceleration.y = (double)message.accelY;
+      imu_msg.linear_acceleration.z = (double)message.accelZ;
+
+      imu_msg.angular_velocity.x = (double)message.gyroX;
+      imu_msg.angular_velocity.y = (double)message.gyroY;
+      imu_msg.angular_velocity.z = (double)message.gyroZ;
+
+      imu_msg.orientation.x = (double)message.imuId;
+
+      imu_pub[1]->publish(imu_msg); // publish on imu1 topic
       return;
     }
 
@@ -495,6 +534,14 @@ namespace hoverboard_driver
         ;
         hardware_publisher->publish_curr(left_wheel, (double)msg.left_dc_curr / 100.0);
         hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
+
+        hardware_publisher->publish_cmd1(msg.cmd1);
+        hardware_publisher->publish_cmd2(msg.cmd2);
+        hardware_publisher->publish_cmdLed(msg.cmdLed);
+        if (msg.cmdLed > output_max) {
+          output_max = msg.cmdLed;
+          RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "input: %d, output: %d, max: %d", msg.cmd1, msg.cmd2, msg.cmdLed);
+        }
 
         // Convert RPM to RAD/S
         hw_velocities_[left_wheel] = direction_correction * (abs(msg.speedL_meas) * 0.10472);

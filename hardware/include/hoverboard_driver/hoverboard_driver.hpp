@@ -36,6 +36,8 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/int16.hpp"
+#include "std_msgs/msg/u_int16.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 
 namespace hoverboard_driver
@@ -92,6 +94,10 @@ namespace hoverboard_driver
     /// @param message value to publish
     void publish_imu(const SerialImu& message, const rclcpp::Time &time);
 
+    void publish_cmd1(int16_t message);
+    void publish_cmd2(int16_t message);
+    void publish_cmdLed(uint16_t message);
+
     /// @brief parameter callback method. 
     /// @param parameters 
     /// @return 
@@ -127,6 +133,9 @@ namespace hoverboard_driver
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr curr_pub[2];
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr temp_pub;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr connected_pub;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr cmd1_pub;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr cmd2_pub;
+    rclcpp::Publisher<std_msgs::msg::UInt16>::SharedPtr cmdLed_pub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub[2];
 
         // Parameter Callback handle
@@ -196,6 +205,7 @@ namespace hoverboard_driver
     SerialFeedback msg;
 
     PID pids[2];
+    uint16_t output_max = 0;
 
     double last_write = 0.0; // Time since last write() in seconds
     const double write_period = 0.1; // Period between writes in seconds. 0.1s = 100ms = 10Hz

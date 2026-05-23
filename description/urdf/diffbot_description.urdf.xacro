@@ -6,14 +6,14 @@
   <!-- Constants for robot dimensions -->
   <xacro:property name="PI" value="3.1415926535897931"/>
   <xacro:property name="base_mass" value="0.3" /> <!-- arbitrary value for base mass -->
-  <xacro:property name="base_width" value="0.1" />
-  <xacro:property name="base_length" value="0.1" />
-  <xacro:property name="base_height" value="0.05" />
+  <xacro:property name="base_width" value="0.60" />
+  <xacro:property name="base_length" value="0.19" />
+  <xacro:property name="base_height" value="0.12" />
   <xacro:property name="wheel_mass" value="0.3" /> <!-- arbitrary value for wheel mass -->
-  <xacro:property name="wheel_len" value="0.020" />
-  <xacro:property name="wheel_radius" value="0.015" />
+  <xacro:property name="wheel_len" value="0.052" />
+  <xacro:property name="wheel_radius" value="0.127" />
   <xacro:property name="caster_wheel_mass" value="0.1" /> <!-- arbitrary value for caster wheel mass -->
-  <xacro:property name="caster_wheel_radius" value="0.015" />
+  <xacro:property name="caster_wheel_radius" value="0.10" />
   <xacro:property name="z_offset" value="-${base_height/2}" /> <!-- Space btw top of beam and the each joint -->
 
   <!-- Base Link -->
@@ -21,14 +21,14 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="${base_width} ${base_length} ${base_height}"/>
+        <box size="${base_length} ${base_width} ${base_height}"/>
       </geometry>
     </collision>
 
     <visual>
       <origin xyz="0 0 ${base_height/2}" rpy="0 0 0"/>
       <geometry>
-        <box size="${base_width} ${base_length} ${base_height}"/>
+        <box size="${base_length} ${base_width} ${base_height}"/>
       </geometry>
       <material name="orange"/>
     </visual>
@@ -37,9 +37,9 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="${base_mass}"/>
       <inertia
-        ixx="${base_mass / 12.0 * (base_length*base_length + base_height*base_height)}" ixy="0.0" ixz="0.0"
-        iyy="${base_mass / 12.0 * (base_height*base_height + base_width*base_width)}" iyz="0.0"
-        izz="${base_mass / 12.0 * (base_width*base_width + base_length*base_length)}"/>
+        ixx="${base_mass / 12.0 * (base_width*base_width + base_height*base_height)}" ixy="0.0" ixz="0.0"
+        iyy="${base_mass / 12.0 * (base_height*base_height + base_length*base_length)}" iyz="0.0"
+        izz="${base_mass / 12.0 * (base_length*base_length + base_width*base_width)}"/>
       </inertial>
     </link>
 
@@ -178,6 +178,34 @@
           izz="${caster_wheel_mass * 0.4 * (caster_wheel_radius * caster_wheel_radius)}"/>
         </inertial>
       </link>
+
+    <!-- IMU MPU6500 Link -->
+    <link name="${prefix}imu0_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.003 0.003 0.001"/>
+        </geometry>
+        <material name="blue"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.003 0.003 0.001"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia ixx="1e-6" ixy="0.0" ixz="0.0" iyy="1e-6" iyz="0.0" izz="1e-6"/>
+      </inertial>
+    </link>
+
+    <joint name="${prefix}imu_joint" type="fixed">
+      <parent link="${prefix}base_link"/>
+      <child link="${prefix}imu0_link"/>
+      <origin xyz="0 0.09 -0.04" rpy="${PI} 0 0"/>
+    </joint>
 
   </xacro:macro>
 
