@@ -123,6 +123,9 @@ namespace hoverboard_driver
 
     std::array<double, 3> linear_acceleration_covariance_diagonal_;
     std::array<double, 3> angular_velocity_covariance_diagonal_;
+    // Optional static bias compensation (units: m/s^2 for accel, rad/s for gyro)
+    std::array<double, 3> linear_acceleration_bias_ = {0.0, 0.0, 0.0};
+    std::array<double, 3> angular_velocity_bias_ = {0.0, 0.0, 0.0};
 
   private:
     // Publishers

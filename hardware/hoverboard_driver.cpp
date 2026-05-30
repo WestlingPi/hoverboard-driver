@@ -183,6 +183,11 @@ namespace hoverboard_driver
     imu_msg.angular_velocity.y = (double)message.gyroY * g_scale;
     imu_msg.angular_velocity.z = (double)message.gyroZ * g_scale;
 
+      // Apply optional static bias compensation
+      imu_msg.angular_velocity.x -= angular_velocity_bias_[0];
+      imu_msg.angular_velocity.y -= angular_velocity_bias_[1];
+      imu_msg.angular_velocity.z -= angular_velocity_bias_[2];
+
     // Use configured covariance diagonals
     imu_msg.linear_acceleration_covariance = {
         linear_acceleration_covariance_diagonal_[0], 0.0, 0.0,
@@ -266,7 +271,7 @@ namespace hoverboard_driver
     wheel_radius = std::stod(info_.hardware_parameters["wheel_radius"]);
     max_velocity = std::stod(info_.hardware_parameters["max_velocity"]);
     port = info_.hardware_parameters["device"];
-    hw_positions_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+    hw_positions_.resize(info_.joints.size(), 0.0); // Positions starts at 0.0
     hw_velocities_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
     hw_commands_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
 
@@ -347,6 +352,28 @@ namespace hoverboard_driver
         hardware_publisher->angular_velocity_covariance_diagonal_ = {v[0], v[1], v[2]};
       } else {
         RCLCPP_WARN(rclcpp::get_logger("hoverboard_driver"), "angular_velocity_covariance_diagonal is not 3 values. Using defaults.");
+      }
+    }
+
+    // Parse optional IMU bias parameters (units: accel m/s^2, gyro rad/s)
+    hardware_publisher->linear_acceleration_bias_ = {0.0, 0.0, 0.0};
+    hardware_publisher->angular_velocity_bias_ = {0.0, 0.0, 0.0};
+    if (info_.hardware_parameters.count("linear_acceleration_bias")) {
+      std::istringstream iss(info_.hardware_parameters["linear_acceleration_bias"]);
+      double v[3];
+      if (iss >> v[0] >> v[1] >> v[2]) {
+        hardware_publisher->linear_acceleration_bias_ = {v[0], v[1], v[2]};
+      } else {
+        RCLCPP_WARN(rclcpp::get_logger("hoverboard_driver"), "linear_acceleration_bias is not 3 values. Using defaults.");
+      }
+    }
+    if (info_.hardware_parameters.count("angular_velocity_bias")) {
+      std::istringstream iss(info_.hardware_parameters["angular_velocity_bias"]);
+      double v[3];
+      if (iss >> v[0] >> v[1] >> v[2]) {
+        hardware_publisher->angular_velocity_bias_ = {v[0], v[1], v[2]};
+      } else {
+        RCLCPP_WARN(rclcpp::get_logger("hoverboard_driver"), "angular_velocity_bias is not 3 values. Using defaults.");
       }
     }
 
