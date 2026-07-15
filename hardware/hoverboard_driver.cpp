@@ -27,6 +27,8 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+#define CLAMP(x, low, high) (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
+
 namespace hoverboard_driver
 {
 
@@ -153,8 +155,8 @@ namespace hoverboard_driver
     } else if (message.imuId == 1) {
       imu_msg.header.frame_id = imu1_frame_id_;
     } else {
-      // For debugging, parameters accelX, accelY, accelZ are used to report debug counters from hoverboard firmware.
-      RCLCPP_WARN(get_logger(), "IMU read error imuId: %d, error %d, addrError %d, timeout %d", message.imuId, message.accelX, message.accelY, message.accelZ);
+      // For debugging, parameters accelX, accelY, accelZ, gyroX, gyroY, gyroZ are used to report debug counters from hoverboard firmware.
+      RCLCPP_WARN(get_logger(), "IMU read error imuId: %d, error %d, addrError %d, timeout %d, input %d, output %d, errors %d", message.imuId, message.accelX, message.accelY, message.accelZ, message.gyroX, message.gyroY, message.gyroZ);
 
       imu_msg.header.frame_id = "hoverboard_imu_unknown";
 
@@ -557,7 +559,7 @@ namespace hoverboard_driver
       if (msg.checksum == checksum)
       {
         hardware_publisher->publish_voltage((double)msg.batVoltage / 100.0);
-        hardware_publisher->publish_temp((double)msg.boardTemp / 10.0);
+        hardware_publisher->publish_temp((double)msg.boardTemp);//  / 10.0);
         ;
         hardware_publisher->publish_curr(left_wheel, (double)msg.left_dc_curr / 100.0);
         hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
@@ -567,12 +569,16 @@ namespace hoverboard_driver
         hardware_publisher->publish_cmdLed(msg.cmdLed);
         if (msg.cmdLed > output_max) {
           output_max = msg.cmdLed;
-          RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "input: %d, output: %d, max: %d", msg.cmd1, msg.cmd2, msg.cmdLed);
+          RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "input: %d, output: %d, Max: %d, errors: %d", msg.cmd1, msg.cmd2, msg.cmdLed, msg.boardTemp);
+        }
+        if (msg.boardTemp != lastErrors) {
+          lastErrors = msg.boardTemp;
+          RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "input: %d, output: %d, max: %d, Errors: %d", msg.cmd1, msg.cmd2, msg.cmdLed, msg.boardTemp);
         }
 
         // Convert RPM to RAD/S
-        hw_velocities_[left_wheel] = direction_correction * (abs(msg.speedL_meas) * 0.10472);
-        hw_velocities_[right_wheel] = direction_correction * (abs(msg.speedR_meas) * 0.10472);
+        hw_velocities_[left_wheel] = direction_correction * (msg.speedL_meas * 0.10472); // (abs(msg.speedL_meas) * 0.10472);
+        hw_velocities_[right_wheel] = direction_correction * (msg.speedR_meas * 0.10472); // (abs(msg.speedR_meas) * 0.10472);
         hardware_publisher->publish_vel(left_wheel, hw_velocities_[left_wheel]);
         hardware_publisher->publish_vel(right_wheel, hw_velocities_[right_wheel]);
 
@@ -671,6 +677,14 @@ namespace hoverboard_driver
     command.start = (uint16_t)START_FRAME;
     command.steer = (int16_t)steer;
     command.speed = (int16_t)speed;
+    if (abs(command.steer) > 100 || abs(command.speed) > 100) {
+      RCLCPP_WARN(rclcpp::get_logger("hoverboard_driver"), "SerialCommand out of range: steer %d, speed %d", command.steer, command.speed);
+    }
+    else {
+      RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "SerialCommand: steer %d, speed %d", command.steer, command.speed);
+    }
+    command.steer = CLAMP(command.steer, -100, 100);
+    command.speed = CLAMP(command.speed, -100, 100);
     command.checksum = (uint16_t)(command.start ^ command.steer ^ command.speed);
 
     int rc = ::write(port_fd, (const void *)&command, sizeof(command));

@@ -208,7 +208,8 @@ namespace hoverboard_driver
     SerialFeedback msg;
 
     PID pids[2];
-    uint16_t output_max = 0;
+    uint16_t output_max = 0; // Debug counter
+    uint16_t lastErrors = 0; // Debug counter
 
     double last_write = 0.0; // Time since last write() in seconds
     const double write_period = 0.1; // Period between writes in seconds. 0.1s = 100ms = 10Hz
